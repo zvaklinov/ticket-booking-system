@@ -68,6 +68,12 @@ public class Event {
 
     public Event(Category category, String title, Instant startTimeUtc, Instant endTimeUtc,
                  Instant bookingOpensAtUtc, Instant bookingClosesAtUtc, String currency) {
+        if (!startTimeUtc.isBefore(endTimeUtc)) {
+            throw new IllegalArgumentException("startTimeUtc must be before endTimeUtc");
+        }
+        if (!"EUR".equals(currency)) {
+            throw new IllegalArgumentException("currency must be EUR");
+        }
         this.category = category;
         this.title = title;
         this.startTimeUtc = startTimeUtc;
