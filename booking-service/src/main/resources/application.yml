@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5434/booking_service_db
-    username: postgres1
-    password: postgres1
+    username: booking
+    password: booking
   jpa:
     hibernate:
       ddl-auto: none

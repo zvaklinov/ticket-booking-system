@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/event_service_db
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://localhost:5433/event_service_db
+    username: event
+    password: event
   jpa:
     hibernate:
       ddl-auto: none
