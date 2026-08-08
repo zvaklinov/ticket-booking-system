@@ -8,7 +8,7 @@
 		<version>4.1.0</version>
 		<relativePath/> <!-- lookup parent from a repository -->
 	</parent>
-	<groupId>event-service</groupId>
+	<groupId>com.hari</groupId>
 	<artifactId>event-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name/>
