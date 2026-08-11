@@ -312,8 +312,8 @@ Built in phases, each completed and verified before the next begins.
 |:---:|:---|:---:|
 | **0** | State machines, invariants, service and event contracts | ✅ Complete |
 | **1** | Event Service — entities, lifecycle, filtering, migrations, tests | ✅ Complete |
-| **2** | Booking Service — seats, atomic holds, expiration, confirmation | 🔨 In progress |
-| **3** | Identity and JWT | 📋 Planned |
+| **2** | Booking Service — seats, atomic holds, expiration, confirmation | ✅ Complete |
+| **3** | Identity and JWT | 🔨 In progress |
 | **4** | Kafka and transactional outbox | 📋 Planned |
 | **5** | Payment Service and Stripe | 📋 Planned |
 | **6** | Preference and Notification Services | 📋 Planned |
