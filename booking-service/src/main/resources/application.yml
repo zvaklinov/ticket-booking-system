@@ -1,3 +1,6 @@
+server:
+  port: 8081
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5434/booking_service_db
@@ -12,6 +15,17 @@ spring:
       hibernate:
         format_sql: true
 
+event-service:
+  base-url: http://localhost:8080
+
 logging:
   level:
     org.hibernate.SQL: debug
+
+booking:
+  hold:
+    duration: PT10M
+    payment-deadline: PT5M
+  sweep:
+    interval-ms: 10000
+    batch-size: 100
