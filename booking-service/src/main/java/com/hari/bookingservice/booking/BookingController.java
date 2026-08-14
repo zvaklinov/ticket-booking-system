@@ -1,6 +1,9 @@
 package com.hari.bookingservice.booking;
 
 import com.hari.bookingservice.booking.dto.BookingResponse;
+import com.hari.bookingservice.common.AuthenticatedUser;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,14 +20,12 @@ public class BookingController {
     }
 
     @GetMapping("/{bookingId}")
-    public BookingResponse getById(@PathVariable UUID bookingId) {
-        return bookingService.getById(bookingId);
+    public BookingResponse getById(@PathVariable UUID bookingId, @AuthenticationPrincipal Jwt jwt) {
+        return bookingService.getById(bookingId, AuthenticatedUser.idOf(jwt));
     }
 
     @GetMapping
-    // TODO Phase 3: userId comes from the JWT subject; this endpoint currently lets any caller
-    // read any user's bookings, which is only acceptable because no auth exists yet.
-    public List<BookingResponse> listByUser(@RequestParam UUID userId) {
-        return bookingService.listByUser(userId);
+    public List<BookingResponse> listMine(@AuthenticationPrincipal Jwt jwt) {
+        return bookingService.listByUser(AuthenticatedUser.idOf(jwt));
     }
 }

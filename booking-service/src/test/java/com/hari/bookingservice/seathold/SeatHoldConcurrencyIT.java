@@ -63,7 +63,8 @@ class SeatHoldConcurrencyIT {
         int threads = 10;
 
         Results results = runConcurrently(threads, i -> seatHoldService.create(
-                new CreateSeatHoldRequest(eventId, UUID.randomUUID(), List.of(seat.getId())),
+                new CreateSeatHoldRequest(eventId, List.of(seat.getId())),
+                UUID.randomUUID(),                    // distinct user per thread
                 UUID.randomUUID().toString()));
 
         assertEquals(1, results.successes(), "exactly one claim should win");
@@ -90,7 +91,8 @@ class SeatHoldConcurrencyIT {
                 List.of(a3.getId(), a4.getId(), a5.getId()));
 
         Results results = runConcurrently(2, i -> seatHoldService.create(
-                new CreateSeatHoldRequest(eventId, UUID.randomUUID(), requests.get(i)),
+                new CreateSeatHoldRequest(eventId, requests.get(i)),
+                UUID.randomUUID(),
                 UUID.randomUUID().toString()));
 
         assertEquals(1, results.successes());
@@ -122,7 +124,8 @@ class SeatHoldConcurrencyIT {
         List<List<UUID>> requests = List.of(List.of(a1.getId()), List.of(a2.getId()));
 
         Results results = runConcurrently(2, i -> seatHoldService.create(
-                new CreateSeatHoldRequest(eventId, userId, requests.get(i)),
+                new CreateSeatHoldRequest(eventId, requests.get(i)),
+                userId,                               // same user — the partial index must reject one
                 UUID.randomUUID().toString()));
 
         assertEquals(1, results.successes(), "a user must not hold two active holds for one event");
@@ -135,9 +138,9 @@ class SeatHoldConcurrencyIT {
         Seat a1 = createSeat("A1", "50.00");
         UUID userId = UUID.randomUUID();
         String idempotencyKey = UUID.randomUUID().toString();
-        CreateSeatHoldRequest request = new CreateSeatHoldRequest(eventId, userId, List.of(a1.getId()));
+        CreateSeatHoldRequest request = new CreateSeatHoldRequest(eventId, List.of(a1.getId()));
 
-        Results results = runConcurrently(2, i -> seatHoldService.create(request, idempotencyKey));
+        Results results = runConcurrently(2, i -> seatHoldService.create(request, userId, idempotencyKey));
 
         assertEquals(1, seatHoldRepository.count(), "one hold, regardless of how the race resolved");
         assertEquals(2, results.successes(), "both callers should receive the same hold");

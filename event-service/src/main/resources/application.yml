@@ -1,4 +1,10 @@
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8083/.well-known/jwks.json
+          issuer-uri: http://localhost:8083
   datasource:
     url: jdbc:postgresql://localhost:5433/event_service_db
     username: event

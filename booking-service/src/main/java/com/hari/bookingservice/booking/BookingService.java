@@ -1,6 +1,7 @@
 package com.hari.bookingservice.booking;
 
 import com.hari.bookingservice.booking.dto.BookingResponse;
+import com.hari.bookingservice.booking.exceptions.BookingAccessDeniedException;
 import com.hari.bookingservice.booking.exceptions.BookingNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,9 +22,14 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public BookingResponse getById(UUID bookingId) {
+    public BookingResponse getById(UUID bookingId, UUID userId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException(bookingId));
+
+        if (!booking.getUserId().equals(userId)) {
+            throw new BookingAccessDeniedException(bookingId);
+        }
+
         return BookingResponse.from(booking, bookingItemRepository.findByBookingId(bookingId));
     }
 

@@ -43,16 +43,16 @@ public class SeatHoldService {
      * and recovering requires reading data committed by that other request, which is impossible
      * inside the transaction that just rolled back.
      */
-    public SeatHoldResponse create(CreateSeatHoldRequest request, String idempotencyKey) {
-        String requestHash = hashRequest(request);
+    public SeatHoldResponse create(CreateSeatHoldRequest request, UUID userId, String idempotencyKey) {
+        String requestHash = hashRequest(request, userId);
         try {
-            return creator.createInternal(request, idempotencyKey, requestHash);
+            return creator.createInternal(request, userId, idempotencyKey, requestHash);
         } catch (SeatsNotAvailableException | ActiveHoldAlreadyExistsException
                  | DataIntegrityViolationException e) {
             // These are the failures a same-key concurrent winner can cause. If that winner
             // committed a hold for this exact request, this call is a duplicate and must return
             // the same result. Otherwise, the failure is real and propagates unchanged.
-            return creator.findExistingForKey(request.userId(), idempotencyKey, requestHash)
+            return creator.findExistingForKey(userId, idempotencyKey, requestHash)
                     .orElseThrow(() -> e);
         }
     }
@@ -74,12 +74,19 @@ public class SeatHoldService {
     }
 
     @Transactional(readOnly = true)
-    public SeatHoldResponse getById(UUID holdId) {
+    public SeatHoldResponse getById(UUID holdId, UUID userId) {
+        SeatHold hold = seatHoldRepository.findById(holdId)
+                .orElseThrow(() -> new SeatHoldNotFoundException(holdId));
+
+        if (!hold.getUserId().equals(userId)) {
+            throw new SeatHoldAccessDeniedException(holdId);
+        }
+
         return creator.loadResponse(holdId);
     }
 
-    private String hashRequest(CreateSeatHoldRequest request) {
-        String canonical = request.eventId() + "|" + request.userId() + "|"
+    private String hashRequest(CreateSeatHoldRequest request, UUID userId) {
+        String canonical = request.eventId() + "|" + userId + "|"
                 + request.seatIds().stream().distinct().sorted()
                 .map(UUID::toString).collect(Collectors.joining(","));
         try {

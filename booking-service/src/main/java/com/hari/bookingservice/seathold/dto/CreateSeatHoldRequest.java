@@ -9,9 +9,5 @@ import java.util.UUID;
 
 public record CreateSeatHoldRequest(
         @NotNull UUID eventId,
-
-        // TODO Phase 3: remove — user identity must come from the JWT subject, never the client.
-        @NotNull UUID userId,
-
         @NotEmpty @Size(min = 1, max = 6) List<UUID> seatIds
 ) {}

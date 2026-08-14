@@ -54,11 +54,11 @@ class SeatHoldCreator {
     }
 
     @Transactional
-    SeatHoldResponse createInternal(CreateSeatHoldRequest request, String idempotencyKey, String requestHash) {
+    SeatHoldResponse createInternal(CreateSeatHoldRequest request, UUID userId, String idempotencyKey, String requestHash) {
         Instant now = clock.instant();
 
         Optional<IdempotencyKey> existing =
-                idempotencyKeyRepository.findByUserIdAndIdempotencyKey(request.userId(), idempotencyKey);
+                idempotencyKeyRepository.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
         if (existing.isPresent()) {
             IdempotencyKey key = existing.get();
             if (!key.getRequestHash().equals(requestHash)) {
@@ -77,10 +77,10 @@ class SeatHoldCreator {
         }
 
         boolean hasActiveHold = seatHoldRepository.existsByUserIdAndEventIdAndStatusIn(
-                request.userId(), request.eventId(),
+                userId, request.eventId(),
                 List.of(SeatHoldStatus.ACTIVE, SeatHoldStatus.PAYMENT_PENDING));
         if (hasActiveHold) {
-            throw new ActiveHoldAlreadyExistsException(request.userId(), request.eventId());
+            throw new ActiveHoldAlreadyExistsException(userId, request.eventId());
         }
 
         List<UUID> seatIds = request.seatIds().stream().distinct().sorted().toList();
@@ -101,7 +101,7 @@ class SeatHoldCreator {
 
         Instant expiresAt = now.plus(holdDuration);
         SeatHold hold = seatHoldRepository.saveAndFlush(
-                new SeatHold(request.eventId(), request.userId(), expiresAt, totalAmount, currency));
+                new SeatHold(request.eventId(), userId, expiresAt, totalAmount, currency));
 
         int rowsClaimed = seatRepository.claimSeats(request.eventId(), seatIds, hold.getId(), expiresAt);
         if (rowsClaimed != seatIds.size()) {
@@ -120,7 +120,7 @@ class SeatHoldCreator {
         seatHoldItemRepository.saveAll(items);
 
         idempotencyKeyRepository.save(
-                new IdempotencyKey(request.userId(), idempotencyKey, requestHash, hold.getId()));
+                new IdempotencyKey(userId, idempotencyKey, requestHash, hold.getId()));
 
         return SeatHoldResponse.from(hold, items);
     }

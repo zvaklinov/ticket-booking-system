@@ -1,9 +1,6 @@
 package com.hari.bookingservice.common;
 
-import com.hari.bookingservice.booking.exceptions.BookingConfirmationFailedException;
-import com.hari.bookingservice.booking.exceptions.BookingNotFoundException;
-import com.hari.bookingservice.booking.exceptions.CancellationDeadlinePassedException;
-import com.hari.bookingservice.booking.exceptions.InvalidBookingTransitionException;
+import com.hari.bookingservice.booking.exceptions.*;
 import com.hari.bookingservice.event.EventNotFoundException;
 import com.hari.bookingservice.event.EventServiceUnavailableException;
 import com.hari.bookingservice.seat.exceptions.InvalidSeatTransitionException;
@@ -84,8 +81,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SeatHoldAccessDeniedException.class)
     public ResponseEntity<ApiError> handleSeatHoldAccessDenied(SeatHoldAccessDeniedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ApiError(403, "Forbidden", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiError(404, "Not Found", ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -119,6 +116,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({BookingNotFoundException.class, SeatNotFoundException.class})
     public ResponseEntity<ApiError> handleNotFound(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiError(404, "Not Found", ex.getMessage()));
+    }
+
+    @ExceptionHandler(BookingAccessDeniedException.class)
+    public ResponseEntity<ApiError> handleBookingAccessDenied(BookingAccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ApiError(404, "Not Found", ex.getMessage()));
     }

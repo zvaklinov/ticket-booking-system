@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from a repository -->
     </parent>
     <groupId>com.hari</groupId>
-    <artifactId>booking-service</artifactId>
+    <artifactId>identity-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name/>
     <description/>
@@ -111,11 +111,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security-test</artifactId>
-            <scope>test</scope>
         </dependency>
 
     </dependencies>

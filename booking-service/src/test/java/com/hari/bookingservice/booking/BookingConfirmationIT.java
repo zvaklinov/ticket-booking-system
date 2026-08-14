@@ -229,7 +229,8 @@ class BookingConfirmationIT {
 
     private SeatHoldResponse createHold(List<Seat> seats) {
         return seatHoldService.create(
-                new CreateSeatHoldRequest(eventId, userId, seats.stream().map(Seat::getId).toList()),
+                new CreateSeatHoldRequest(eventId, seats.stream().map(Seat::getId).toList()),
+                userId,
                 UUID.randomUUID().toString());
     }
 }

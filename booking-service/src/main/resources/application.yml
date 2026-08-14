@@ -2,6 +2,12 @@ server:
   port: 8081
 
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8083/.well-known/jwks.json
+          issuer-uri: http://localhost:8083
   datasource:
     url: jdbc:postgresql://localhost:5434/booking_service_db
     username: booking

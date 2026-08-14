@@ -23,6 +23,19 @@ services:
     volumes:
       - booking-postgres-data:/var/lib/postgresql/data
 
+  identity-postgres:
+    image: postgres:16
+    container_name: identity-postgres
+    environment:
+      POSTGRES_DB: identity_service_db
+      POSTGRES_USER: identity
+      POSTGRES_PASSWORD: identity
+    ports:
+      - "5435:5432"
+    volumes:
+      - identity-postgres-data:/var/lib/postgresql/data
+
 volumes:
   event-postgres-data:
   booking-postgres-data:
+  identity-postgres-data:
