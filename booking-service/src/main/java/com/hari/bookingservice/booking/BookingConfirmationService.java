@@ -1,6 +1,8 @@
 package com.hari.bookingservice.booking;
 
 import com.hari.bookingservice.booking.exceptions.BookingConfirmationFailedException;
+import com.hari.bookingservice.outbox.OutboxWriter;
+import com.hari.bookingservice.outbox.events.BookingConfirmedPayload;
 import com.hari.bookingservice.seat.SeatRepository;
 import com.hari.bookingservice.seathold.*;
 import com.hari.bookingservice.seathold.exceptions.SeatHoldNotFoundException;
@@ -21,6 +23,7 @@ public class BookingConfirmationService {
     private final SeatRepository seatRepository;
     private final BookingRepository bookingRepository;
     private final BookingItemRepository bookingItemRepository;
+    private final OutboxWriter outboxWriter;
     private final Clock clock;
 
     public BookingConfirmationService(SeatHoldRepository seatHoldRepository,
@@ -28,12 +31,14 @@ public class BookingConfirmationService {
                                       SeatRepository seatRepository,
                                       BookingRepository bookingRepository,
                                       BookingItemRepository bookingItemRepository,
+                                      OutboxWriter outboxWriter,
                                       Clock clock) {
         this.seatHoldRepository = seatHoldRepository;
         this.seatHoldItemRepository = seatHoldItemRepository;
         this.seatRepository = seatRepository;
         this.bookingRepository = bookingRepository;
         this.bookingItemRepository = bookingItemRepository;
+        this.outboxWriter = outboxWriter;
         this.clock = clock;
     }
 
@@ -96,7 +101,16 @@ public class BookingConfirmationService {
                         item.getPrice(), item.getCurrency()))
                 .toList());
 
-        // TODO Phase 4: publish BookingConfirmed via the outbox, in this same transaction.
+        outboxWriter.write("BookingConfirmed", booking.getId(), new BookingConfirmedPayload(
+                booking.getId(),
+                holdId,
+                booking.getEventId(),
+                booking.getUserId(),
+                holdItems.stream().map(SeatHoldItem::getSeatId).toList(),
+                booking.getTotalAmount(),
+                booking.getCurrency(),
+                booking.getConfirmedAt()));
+
         return booking;
     }
 

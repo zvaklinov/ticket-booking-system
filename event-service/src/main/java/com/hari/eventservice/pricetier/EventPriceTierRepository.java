@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import java.util.UUID;
 
 public interface EventPriceTierRepository extends JpaRepository<EventPriceTier, UUID>, JpaSpecificationExecutor<EventPriceTier> {
+
+    void deleteByEventId(UUID eventId);
 }

@@ -4,6 +4,10 @@ import com.hari.eventservice.category.Category;
 import com.hari.eventservice.category.CategoryRepository;
 import com.hari.eventservice.common.EntityNotFoundException;
 import com.hari.eventservice.event.dto.EventResponse;
+import com.hari.eventservice.outbox.OutboxWriter;
+import com.hari.eventservice.outbox.events.EventArchivedPayload;
+import com.hari.eventservice.outbox.events.EventCancelledPayload;
+import com.hari.eventservice.outbox.events.EventPublishedPayload;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -20,21 +24,27 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final CategoryRepository categoryRepository;
+    private final OutboxWriter outboxWriter;
     private final Clock clock;
 
-    public EventService(EventRepository eventRepository, CategoryRepository categoryRepository, Clock clock) {
+    public EventService(EventRepository eventRepository,
+                        CategoryRepository categoryRepository,
+                        OutboxWriter outboxWriter,
+                        Clock clock) {
         this.eventRepository = eventRepository;
         this.categoryRepository = categoryRepository;
+        this.outboxWriter = outboxWriter;
         this.clock = clock;
     }
 
     @Transactional
-    public EventResponse create(UUID categoryId, String title, Instant startTimeUtc, Instant endTimeUtc,
-                                Instant bookingOpensAtUtc, Instant bookingClosesAtUtc, String currency) {
+    public EventResponse create(UUID categoryId, String title, String description, String location, String venueName,
+                                String venueTimezone,  Instant startTimeUtc, Instant endTimeUtc, Instant bookingOpensAtUtc,
+                                Instant bookingClosesAtUtc, String currency) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new EntityNotFoundException("Category not found: " + categoryId));
 
-        Event event = new Event(category, title, startTimeUtc, endTimeUtc,
+        Event event = new Event(category, title, description, location, venueName, venueTimezone, startTimeUtc, endTimeUtc,
                 bookingOpensAtUtc, bookingClosesAtUtc, currency);
 
         return EventResponse.from(eventRepository.saveAndFlush(event));
@@ -46,18 +56,30 @@ public class EventService {
     }
 
     @Transactional
-    public void publish(UUID eventId) {
-        findOrThrow(eventId).publish();
+    public EventResponse publish(UUID eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event: " + eventId));
+        event.publish();
+        outboxWriter.write("EventPublished", event.getId(), toPublishedPayload(event));
+        return EventResponse.from(event);
     }
 
     @Transactional
-    public void cancel(UUID eventId) {
-        findOrThrow(eventId).cancel();
+    public EventResponse cancel(UUID eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event: " + eventId));
+        event.cancel();
+        outboxWriter.write("EventCancelled", event.getId(), toCancelledPayload(event));
+        return EventResponse.from(event);
     }
 
     @Transactional
-    public void archive(UUID eventId) {
-        findOrThrow(eventId).archive(clock.instant());
+    public EventResponse archive(UUID eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new EntityNotFoundException("Event: " + eventId));
+        event.archive(clock.instant());
+        outboxWriter.write("EventArchived", event.getId(), toArchivedPayload(event));
+        return EventResponse.from(event);
     }
 
     @Transactional(readOnly = true)
@@ -71,5 +93,28 @@ public class EventService {
     private Event findOrThrow(UUID eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() -> new EntityNotFoundException("Event not found: " + eventId));
+    }
+
+    private EventPublishedPayload toPublishedPayload(Event event) {
+        return new EventPublishedPayload(
+                event.getId(),
+                event.getTitle(),
+                event.getCategory().getId(),
+                event.getLocation(),
+                event.getVenueTimezone(),
+                event.getStartTimeUtc(),
+                event.getEndTimeUtc(),
+                event.getBookingOpensAtUtc(),
+                event.getBookingClosesAtUtc(),
+                event.getCurrency(),
+                event.getStatus().name());
+    }
+
+    private EventCancelledPayload toCancelledPayload(Event event) {
+        return new EventCancelledPayload(event.getId(), event.getStatus().name());
+    }
+
+    private EventArchivedPayload toArchivedPayload(Event event) {
+        return new EventArchivedPayload(event.getId(), event.getStatus().name());
     }
 }

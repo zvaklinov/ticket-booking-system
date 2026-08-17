@@ -65,8 +65,9 @@ public class Event {
         // required by Hibernate
     }
 
-    public Event(Category category, String title, Instant startTimeUtc, Instant endTimeUtc,
-                 Instant bookingOpensAtUtc, Instant bookingClosesAtUtc, String currency) {
+    public Event(Category category, String title, String description, String venueName, String location,
+                 String venueTimezone, Instant startTimeUtc, Instant endTimeUtc, Instant bookingOpensAtUtc,
+                 Instant bookingClosesAtUtc, String currency) {
         if (!startTimeUtc.isBefore(endTimeUtc)) {
             throw new IllegalArgumentException("startTimeUtc must be before endTimeUtc");
         }
@@ -75,6 +76,10 @@ public class Event {
         }
         this.category = category;
         this.title = title;
+        this.description = description;
+        this.venueName = venueName;
+        this.location = location;
+        this.venueTimezone = venueTimezone;
         this.startTimeUtc = startTimeUtc;
         this.endTimeUtc = endTimeUtc;
         this.bookingOpensAtUtc = bookingOpensAtUtc;

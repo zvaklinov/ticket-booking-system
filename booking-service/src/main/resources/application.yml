@@ -20,6 +20,32 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: booking-service
+      # A new consumer group starts from the beginning of the topic rather than skipping
+      # everything published before it existed. Without this, the first run silently misses
+      # every event already in the topic.
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: false
+    listener:
+      ack-mode: record
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        request.timeout.ms: 3000
+        delivery.timeout.ms: 5000
+
+outbox:
+  poll-interval-ms: 2000
+  batch-size: 50
 
 event-service:
   base-url: http://localhost:8080
@@ -27,6 +53,15 @@ event-service:
 logging:
   level:
     org.hibernate.SQL: debug
+    org.apache.kafka.clients: warn
+    org.apache.kafka.clients.admin: error
+    com.hari.bookingservice: debug
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
 
 booking:
   hold:

@@ -17,7 +17,7 @@ class EventTestFixtures {
         Instant end = start.plus(2, ChronoUnit.HOURS);
         Instant bookingOpens = Instant.now();
         Instant bookingCloses = start.minus(1, ChronoUnit.DAYS);
-        return new Event(category, "Test Event", start, end, bookingOpens, bookingCloses, "EUR");
+        return new Event(category, "Test Event", "Lorem Ipsum", null, null, null, start, end, bookingOpens, bookingCloses, "EUR");
     }
 
     static Event publishableDraftEvent() {
@@ -36,7 +36,7 @@ class EventTestFixtures {
         Instant bookingCloses = Instant.now();
         Instant bookingOpens = start; // opens after it closes — invalid
 
-        Event event = new Event(category, "Test Event", start, end, bookingOpens, bookingCloses, "EUR");
+        Event event = new Event(category, "Test Event", "Lorem Ipsum", null, null, null, start, end, bookingOpens, bookingCloses, "EUR");
         ReflectionTestUtils.setField(event, "venueName", "Test Arena");
         ReflectionTestUtils.setField(event, "location", "Test Location");
         ReflectionTestUtils.setField(event, "venueTimezone", "GMT+3");

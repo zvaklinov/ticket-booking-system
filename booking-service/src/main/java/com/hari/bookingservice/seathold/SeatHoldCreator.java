@@ -4,6 +4,8 @@ import com.hari.bookingservice.common.IdempotencyKey;
 import com.hari.bookingservice.common.IdempotencyKeyRepository;
 import com.hari.bookingservice.event.EventBookability;
 import com.hari.bookingservice.event.EventBookabilityRepository;
+import com.hari.bookingservice.outbox.OutboxWriter;
+import com.hari.bookingservice.outbox.events.SeatHoldCreatedPayload;
 import com.hari.bookingservice.seat.Seat;
 import com.hari.bookingservice.seat.SeatRepository;
 import com.hari.bookingservice.seathold.dto.CreateSeatHoldRequest;
@@ -34,6 +36,7 @@ class SeatHoldCreator {
     private final SeatHoldItemRepository seatHoldItemRepository;
     private final EventBookabilityRepository eventBookabilityRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
+    private final OutboxWriter outboxWriter;
     private final Clock clock;
     private final Duration holdDuration;
 
@@ -42,6 +45,7 @@ class SeatHoldCreator {
                     SeatHoldItemRepository seatHoldItemRepository,
                     EventBookabilityRepository eventBookabilityRepository,
                     IdempotencyKeyRepository idempotencyKeyRepository,
+                    OutboxWriter outboxWriter,
                     Clock clock,
                     @Value("${booking.hold.duration}") Duration holdDuration) {
         this.seatRepository = seatRepository;
@@ -49,6 +53,7 @@ class SeatHoldCreator {
         this.seatHoldItemRepository = seatHoldItemRepository;
         this.eventBookabilityRepository = eventBookabilityRepository;
         this.idempotencyKeyRepository = idempotencyKeyRepository;
+        this.outboxWriter = outboxWriter;
         this.clock = clock;
         this.holdDuration = holdDuration;
     }
@@ -121,6 +126,15 @@ class SeatHoldCreator {
 
         idempotencyKeyRepository.save(
                 new IdempotencyKey(userId, idempotencyKey, requestHash, hold.getId()));
+
+        outboxWriter.write("SeatHoldCreated", hold.getId(), new SeatHoldCreatedPayload(
+                hold.getId(),
+                hold.getEventId(),
+                hold.getUserId(),
+                seatIds,
+                hold.getTotalAmount(),
+                hold.getCurrency(),
+                hold.getExpiresAt()));
 
         return SeatHoldResponse.from(hold, items);
     }

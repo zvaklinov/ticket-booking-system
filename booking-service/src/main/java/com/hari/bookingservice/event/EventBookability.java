@@ -48,6 +48,18 @@ public class EventBookability {
                 && now.isBefore(bookingClosesAtUtc);
     }
 
+    public void apply(String status, Instant bookingOpensAtUtc,
+                      Instant bookingClosesAtUtc, Instant startTimeUtc) {
+        this.status = status;
+        this.bookingOpensAtUtc = bookingOpensAtUtc;
+        this.bookingClosesAtUtc = bookingClosesAtUtc;
+        this.startTimeUtc = startTimeUtc;
+    }
+
+    public void applyStatus(String status) {
+        this.status = status;
+    }
+
     public UUID getEventId() { return eventId; }
     public String getStatus() { return status; }
     public Instant getBookingOpensAtUtc() { return bookingOpensAtUtc; }

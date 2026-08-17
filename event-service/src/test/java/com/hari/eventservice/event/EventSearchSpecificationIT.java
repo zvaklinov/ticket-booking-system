@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -45,11 +44,8 @@ class EventSearchSpecificationIT {
 
         Instant start = Instant.now().plus(10, ChronoUnit.DAYS);
         Instant end = start.plus(2, ChronoUnit.HOURS);
-        Event event = new Event(category, "Gap Priced Concert", start, end,
+        Event event = new Event(category, "Gap Priced Concert", "Lorem Ipsum", "Berlin", "Test Arena", "Europe/Berlin", start, end,
                 Instant.now(), start.minus(1, ChronoUnit.DAYS), "EUR");
-        ReflectionTestUtils.setField(event, "venueName", "Test Arena");
-        ReflectionTestUtils.setField(event, "location", "Berlin");
-        ReflectionTestUtils.setField(event, "venueTimezone", "Europe/Berlin");
         event.publish();
 
         gapPricedEvent = eventRepository.saveAndFlush(event);

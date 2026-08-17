@@ -51,8 +51,9 @@ class EventPriceTierRepositoryIT {
 
         Instant start = Instant.now().plus(10, ChronoUnit.DAYS);
         Instant end = start.plus(2, ChronoUnit.HOURS);
-        Event event = new Event(category, "Test Event", start, end,
-                Instant.now(), start.minus(1, ChronoUnit.DAYS), "EUR");
+        Event event = new Event(category, "Test Event", "Lorem Ipsum", "Sofia, Bulgaria", "Arena 8888",
+                "GMT+3", start, end, Instant.now(), start.minus(1, ChronoUnit.DAYS),
+                "EUR");
 
         return eventRepository.saveAndFlush(event);
     }

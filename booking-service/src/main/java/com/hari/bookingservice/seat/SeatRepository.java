@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -75,4 +76,17 @@ public interface SeatRepository extends JpaRepository<Seat, UUID> {
           AND status = 'HELD'
         """, nativeQuery = true)
     int bookSeatsForHold(@Param("holdId") UUID holdId);
+
+    interface PriceTierView {
+        BigDecimal getPrice();
+        String getCurrency();
+    }
+
+    @Query(value = """
+        SELECT DISTINCT price, currency
+        FROM seat
+        WHERE event_id = :eventId
+        ORDER BY price
+        """, nativeQuery = true)
+    List<PriceTierView> findDistinctPriceTiers(@Param("eventId") UUID eventId);
 }

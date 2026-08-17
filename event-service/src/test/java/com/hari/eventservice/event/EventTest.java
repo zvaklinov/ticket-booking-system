@@ -166,7 +166,8 @@ class EventTest {
         Instant end = start.minus(1, ChronoUnit.HOURS);
 
         assertThrows(IllegalArgumentException.class, () ->
-                new Event(null, "Test Event", start, end, Instant.now(), Instant.now(), "EUR"));
+                new Event(null, "Test Event","Lorem Ipsum", "Sofia, Bulgaria", "Arena 8888",
+                        "GMT+3", start, end, Instant.now(), Instant.now(), "EUR"));
     }
 
     @Test
@@ -175,6 +176,7 @@ class EventTest {
         Instant end = start.plus(2, ChronoUnit.HOURS);
 
         assertThrows(IllegalArgumentException.class, () ->
-                new Event(null, "Test Event", start, end, Instant.now(), Instant.now(), "USD"));
+                new Event(null, "Test Event", "Lorem Ipsum", "Sofia, Bulgaria", "Arena 8888",
+                        "GMT+3", start, end, Instant.now(), Instant.now(), "USD"));
     }
 }

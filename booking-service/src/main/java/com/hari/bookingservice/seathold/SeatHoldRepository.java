@@ -16,4 +16,7 @@ public interface SeatHoldRepository extends JpaRepository<SeatHold, UUID> {
 
     List<SeatHold> findByStatusAndPaymentDeadlineAtBeforeOrderByPaymentDeadlineAtAsc(
             SeatHoldStatus status, Instant now, Pageable pageable);
+
+    List<SeatHold> findByEventIdAndStatusIn(
+            UUID eventId, List<SeatHoldStatus> statuses, Pageable pageable);
 }

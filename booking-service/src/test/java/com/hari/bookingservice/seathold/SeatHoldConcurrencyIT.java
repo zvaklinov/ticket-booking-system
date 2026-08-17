@@ -45,7 +45,7 @@ class SeatHoldConcurrencyIT {
         // Deliberately NOT @Transactional: a test-managed transaction would put every thread
         // in the same transaction, and the race under test could never occur.
         jdbcTemplate.execute("TRUNCATE seat_hold_item, booking_item, booking, seat_hold, seat, "
-                + "event_bookability, idempotency_key CASCADE");
+                + "event_bookability, idempotency_key, outbox, processed_message CASCADE");
 
         eventId = UUID.randomUUID();
         Instant now = Instant.now();

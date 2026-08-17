@@ -46,7 +46,7 @@ class SeatHoldExpiryIT {
     @BeforeEach
     void setUp() {
         jdbcTemplate.execute("TRUNCATE seat_hold_item, booking_item, booking, seat_hold, seat, "
-                + "event_bookability, idempotency_key CASCADE");
+                + "event_bookability, idempotency_key, outbox, processed_message CASCADE");
 
         eventId = UUID.randomUUID();
         Instant now = Instant.now();

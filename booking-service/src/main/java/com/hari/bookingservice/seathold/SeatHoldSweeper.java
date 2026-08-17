@@ -58,7 +58,7 @@ public class SeatHoldSweeper {
 
     private int expireQuietly(SeatHold hold) {
         try {
-            expirer.expire(hold.getId());
+            expirer.expire(hold.getId(), HoldExpiryReason.DEADLINE_PASSED);
             return 1;
         } catch (RuntimeException e) {
             // One bad hold must not abort the sweep; the next run will retry it.

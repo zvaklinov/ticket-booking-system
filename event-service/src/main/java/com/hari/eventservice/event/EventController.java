@@ -3,6 +3,7 @@ package com.hari.eventservice.event;
 import com.hari.eventservice.event.dto.CreateEventRequest;
 import com.hari.eventservice.event.dto.EventResponse;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -26,8 +27,9 @@ public class EventController {
     @PostMapping
     public ResponseEntity<EventResponse> create(@Valid @RequestBody CreateEventRequest request) {
         EventResponse response = eventService.create(
-                request.categoryId(), request.title(), request.startTimeUtc(), request.endTimeUtc(),
-                request.bookingOpensAtUtc(), request.bookingClosesAtUtc(), request.currency());
+                request.categoryId(), request.title(), request.description(), request.location(), request.venueName(),
+                request.venueTimezone(), request.startTimeUtc(), request.endTimeUtc(), request.bookingOpensAtUtc(),
+                request.bookingClosesAtUtc(), request.currency());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -44,7 +46,7 @@ public class EventController {
             @RequestParam(required = false) Instant dateTo,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         return eventService.search(categoryId, location, dateFrom, dateTo, minPrice, maxPrice, pageable);
     }
 

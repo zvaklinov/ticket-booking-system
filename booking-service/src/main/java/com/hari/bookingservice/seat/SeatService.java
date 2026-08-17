@@ -2,6 +2,8 @@ package com.hari.bookingservice.seat;
 
 import com.hari.bookingservice.event.EventServiceClient;
 import com.hari.bookingservice.event.EventSummary;
+import com.hari.bookingservice.outbox.OutboxWriter;
+import com.hari.bookingservice.outbox.events.EventPriceTiersChangedPayload;
 import com.hari.bookingservice.seat.dto.CreateSeatRequest;
 import com.hari.bookingservice.seat.dto.SeatResponse;
 import com.hari.bookingservice.seat.exceptions.SeatCreationNotAllowedException;
@@ -17,10 +19,12 @@ public class SeatService {
 
     private final SeatRepository seatRepository;
     private final EventServiceClient eventServiceClient;
+    private final OutboxWriter outboxWriter;
 
-    public SeatService(SeatRepository seatRepository, EventServiceClient eventServiceClient) {
+    public SeatService(SeatRepository seatRepository, EventServiceClient eventServiceClient, OutboxWriter outboxWriter) {
         this.seatRepository = seatRepository;
         this.eventServiceClient = eventServiceClient;
+        this.outboxWriter = outboxWriter;
     }
 
     @Transactional
@@ -40,7 +44,18 @@ public class SeatService {
                 request.currency()
         );
 
-        return SeatResponse.from(seatRepository.saveAndFlush(seat));
+        Seat saved = seatRepository.saveAndFlush(seat);
+
+        List<EventPriceTiersChangedPayload.PriceTier> tiers =
+                seatRepository.findDistinctPriceTiers(request.eventId()).stream()
+                        .map(view -> new EventPriceTiersChangedPayload.PriceTier(
+                                view.getPrice(), view.getCurrency()))
+                        .toList();
+
+        outboxWriter.write("EventPriceTiersChanged", request.eventId(),
+                new EventPriceTiersChangedPayload(request.eventId(), tiers));
+
+        return SeatResponse.from(saved);
     }
 
     @Transactional
