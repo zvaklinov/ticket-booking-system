@@ -314,8 +314,8 @@ Built in phases, each completed and verified before the next begins.
 | **1** | Event Service — entities, lifecycle, filtering, migrations, tests | ✅ Complete |
 | **2** | Booking Service — seats, atomic holds, expiration, confirmation | ✅ Complete |
 | **3** | Identity and JWT | ✅ Complete |
-| **4** | Kafka and transactional outbox | 🔨 In progress |
-| **5** | Payment Service and Stripe | 📋 Planned |
+| **4** | Kafka and transactional outbox | ✅ Complete |
+| **5** | Payment Service and Stripe | 🔨 In progress |
 | **6** | Preference and Notification Services | 📋 Planned |
 | **7** | Redis caching | 📋 Planned |
 | **8** | Production engineering — gateway, observability, tracing, load and chaos testing | 📋 Planned |
