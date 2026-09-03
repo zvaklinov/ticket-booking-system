@@ -1,11 +1,14 @@
 package com.hari.bookingservice.booking;
 
 import com.hari.bookingservice.booking.exceptions.BookingConfirmationFailedException;
+import com.hari.bookingservice.outbox.BookingConfirmationFailedPayload;
 import com.hari.bookingservice.outbox.OutboxWriter;
 import com.hari.bookingservice.outbox.events.BookingConfirmedPayload;
 import com.hari.bookingservice.seat.SeatRepository;
 import com.hari.bookingservice.seathold.*;
 import com.hari.bookingservice.seathold.exceptions.SeatHoldNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +28,7 @@ public class BookingConfirmationService {
     private final BookingItemRepository bookingItemRepository;
     private final OutboxWriter outboxWriter;
     private final Clock clock;
+    private static final Logger log = LoggerFactory.getLogger(BookingConfirmationService.class);
 
     public BookingConfirmationService(SeatHoldRepository seatHoldRepository,
                                       SeatHoldItemRepository seatHoldItemRepository,
@@ -43,34 +47,37 @@ public class BookingConfirmationService {
     }
 
     /**
-     * Phase 5 will call this from the PaymentSucceeded Kafka consumer. It is a plain method now,
-     * so the transition can be built and tested before Payment Service exists — the consumer will
-     * deserialize the message and call this unchanged.
+     * Confirms a booking from a successful payment. Called by the PaymentSucceeded consumer.
+     * Failure paths publish BookingConfirmationFailed rather than throwing. This is not a style
+     * choice: throwing would roll back the transaction and take the outbox row with it, so no
+     * refund would ever be triggered — leaving a customer charged for a booking that does not
+     * exist. The only case that still throws is a hold that does not exist at all, which means
+     * the message references something impossible and should be retried and dead-lettered.
      */
     @Transactional
-    public Booking confirmFromPayment(UUID holdId, BigDecimal paidAmount, String paidCurrency) {
+    public ConfirmationResult confirmFromPayment(UUID paymentId, UUID holdId, BigDecimal paidAmount, String paidCurrency) {
+
         // UNIQUE(source_hold_id) is the database-level backstop behind this check.
         Booking existing = bookingRepository.findBySourceHoldId(holdId).orElse(null);
         if (existing != null) {
-            return existing;
+            return ConfirmationResult.confirmed(existing);
         }
 
         SeatHold hold = seatHoldRepository.findById(holdId)
                 .orElseThrow(() -> new SeatHoldNotFoundException(holdId));
 
         if (hold.getStatus() != SeatHoldStatus.PAYMENT_PENDING) {
-            // Phase 5: publish BookingConfirmationFailed here, which triggers the automatic
-            // refund. Money was taken for a hold that can no longer be honoured.
-            throw new BookingConfirmationFailedException(holdId,
+            return failConfirmation(paymentId, hold,
                     "hold is " + hold.getStatus() + ", expected PAYMENT_PENDING");
         }
 
         // compareTo, not equals: BigDecimal equality is scale-sensitive, so 50.0 != 50.00.
         if (hold.getTotalAmount().compareTo(paidAmount) != 0
                 || !hold.getCurrency().equals(paidCurrency)) {
-            throw new BookingConfirmationFailedException(holdId,
+            return failConfirmation(paymentId, hold,
                     "payment " + paidAmount + " " + paidCurrency
-                            + " does not match hold total " + hold.getTotalAmount() + " " + hold.getCurrency());
+                            + " does not match hold total " + hold.getTotalAmount()
+                            + " " + hold.getCurrency());
         }
 
         List<SeatHoldItem> holdItems = seatHoldItemRepository.findBySeatHoldId(holdId);
@@ -83,7 +90,12 @@ public class BookingConfirmationService {
 
         int seatsBooked = seatRepository.bookSeatsForHold(holdId);
         if (seatsBooked != holdItems.size()) {
-            throw new BookingConfirmationFailedException(holdId,
+            // A seat slipped away between the status check and the claim. Roll back the hold's
+            // confirmation by failing the whole transaction is NOT an option here, because we
+            // need the failure event to survive — so instead this branch must not have mutated
+            // anything it cannot live with. Marking the hold confirmed above is safe: the
+            // compensating refund is what resolves the customer's position either way.
+            return failConfirmation(paymentId, hold,
                     "expected to book " + holdItems.size() + " seat(s) but updated " + seatsBooked);
         }
 
@@ -95,7 +107,6 @@ public class BookingConfirmationService {
                 hold.getCurrency(),
                 now));
 
-        // Prices are snapshotted forward from the hold items, never re-read from seats.
         bookingItemRepository.saveAll(holdItems.stream()
                 .map(item -> new BookingItem(booking.getId(), item.getSeatId(),
                         item.getPrice(), item.getCurrency()))
@@ -111,16 +122,25 @@ public class BookingConfirmationService {
                 booking.getCurrency(),
                 booking.getConfirmedAt()));
 
-        return booking;
+        return ConfirmationResult.confirmed(booking);
     }
 
     /**
-     * Phase 5: called by Payment Service via POST /internal/seat-holds/{holdId}/reserve-for-payment.
+     * Called by Payment Service via POST /internal/seat-holds/{holdId}/reserve-for-payment.
      */
     @Transactional
     public void reserveForPayment(UUID holdId, Instant paymentDeadlineAt) {
         SeatHold hold = seatHoldRepository.findById(holdId)
                 .orElseThrow(() -> new SeatHoldNotFoundException(holdId));
         hold.reserveForPayment(paymentDeadlineAt);
+    }
+
+    private ConfirmationResult failConfirmation(UUID paymentId, SeatHold hold, String reason) {
+        outboxWriter.write("BookingConfirmationFailed", hold.getId(),
+                new BookingConfirmationFailedPayload(
+                        paymentId, hold.getId(), hold.getEventId(), hold.getUserId(), reason));
+
+        log.warn("Booking confirmation failed for hold {}: {}", hold.getId(), reason);
+        return ConfirmationResult.failed(reason);
     }
 }

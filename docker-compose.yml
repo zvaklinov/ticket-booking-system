@@ -35,6 +35,18 @@ services:
     volumes:
       - identity-postgres-data:/var/lib/postgresql/data
 
+  payment-postgres:
+    image: postgres:16
+    container_name: payment-postgres
+    environment:
+      POSTGRES_DB: payment_service_db
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: payment
+    ports:
+      - "5436:5432"
+    volumes:
+      - payment-postgres-data:/var/lib/postgresql/data
+
   kafka:
     image: apache/kafka:3.9.0
     container_name: kafka
@@ -70,3 +82,4 @@ volumes:
   event-postgres-data:
   booking-postgres-data:
   identity-postgres-data:
+  payment-postgres-data:
