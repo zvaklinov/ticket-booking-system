@@ -1,6 +1,5 @@
 package com.hari.bookingservice.booking;
 
-import com.hari.bookingservice.booking.exceptions.BookingConfirmationFailedException;
 import com.hari.bookingservice.outbox.BookingConfirmationFailedPayload;
 import com.hari.bookingservice.outbox.OutboxWriter;
 import com.hari.bookingservice.outbox.events.BookingConfirmedPayload;

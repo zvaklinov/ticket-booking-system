@@ -1,5 +1,7 @@
 package com.hari.paymentservice.payment;
 
+import java.util.List;
+
 public enum PaymentStatus {
     CREATED,
     REQUIRES_PAYMENT_METHOD,
@@ -20,4 +22,6 @@ public enum PaymentStatus {
         return this == CREATED || this == REQUIRES_PAYMENT_METHOD
                 || this == REQUIRES_ACTION || this == PROCESSING;
     }
+
+    public static final List<PaymentStatus> DEAD = List.of(FAILED, CANCELLED);
 }

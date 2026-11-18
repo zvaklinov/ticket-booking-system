@@ -51,6 +51,9 @@ public class Payment {
     @Column(name = "failed_at")
     private Instant failedAt;
 
+    @Column(name = "refund_submitted_at")
+    private Instant refundSubmittedAt;
+
     @Column(name = "refunded_at")
     private Instant refundedAt;
 
@@ -134,6 +137,7 @@ public class Payment {
             throw new InvalidPaymentTransitionException(this.status, PaymentStatus.REFUND_PENDING);
         }
         this.status = PaymentStatus.REFUND_PENDING;
+        this.refundSubmittedAt = null;
         this.refundAttemptCount++;
     }
 
@@ -148,11 +152,19 @@ public class Payment {
         this.refundedAt = now;
     }
 
+    public void markRefundSubmitted(Instant now) {
+        this.refundSubmittedAt = now;
+    }
+
     public void markRefundFailed() {
+        if (this.status == PaymentStatus.REFUND_FAILED) {
+            return;
+        }
         if (this.status != PaymentStatus.REFUND_PENDING) {
             throw new InvalidPaymentTransitionException(this.status, PaymentStatus.REFUND_FAILED);
         }
         this.status = PaymentStatus.REFUND_FAILED;
+        this.refundSubmittedAt = null;
     }
 
     public UUID getId() { return id; }
@@ -163,6 +175,8 @@ public class Payment {
     public PaymentStatus getStatus() { return status; }
     public String getStripePaymentIntentId() { return stripePaymentIntentId; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
     public Instant getCompletedAt() { return completedAt; }
     public int getRefundAttemptCount() { return refundAttemptCount; }
+    public Instant getRefundSubmittedAt() { return refundSubmittedAt; }
 }

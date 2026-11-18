@@ -25,15 +25,18 @@ public class SeatHoldService {
     private final SeatHoldCreator creator;
     private final SeatHoldRepository seatHoldRepository;
     private final SeatRepository seatRepository;
+    private final SeatHoldExpirer seatExpirer;
     private final Clock clock;
 
     public SeatHoldService(SeatHoldCreator creator,
                            SeatHoldRepository seatHoldRepository,
                            SeatRepository seatRepository,
+                           SeatHoldExpirer seatExpirer,
                            Clock clock) {
         this.creator = creator;
         this.seatHoldRepository = seatHoldRepository;
         this.seatRepository = seatRepository;
+        this.seatExpirer = seatExpirer;
         this.clock = clock;
     }
 
@@ -83,6 +86,10 @@ public class SeatHoldService {
         }
 
         return creator.loadResponse(holdId);
+    }
+
+    public void releaseAfterPaymentCancelled(UUID holdId) {
+        seatExpirer.expire(holdId, HoldExpiryReason.PAYMENT_CANCELLED);
     }
 
     private String hashRequest(CreateSeatHoldRequest request, UUID userId) {

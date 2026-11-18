@@ -56,3 +56,15 @@ management:
     web:
       exposure:
         include: health,metrics
+
+payment:
+  refund:
+    poll-interval-ms: 5000
+    resubmit-after: PT10M
+    retry-after: PT1M
+    max-attempts: 5
+    batch-size: 50
+  timeout:
+    deadline: PT30M
+    poll-interval-ms: 60000
+    batch-size: 50

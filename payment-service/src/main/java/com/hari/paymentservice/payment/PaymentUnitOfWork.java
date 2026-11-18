@@ -18,15 +18,15 @@ import java.util.UUID;
  * everything touching those rows.
  */
 @Component
-class PaymentTransactions {
+class PaymentUnitOfWork {
 
     private final PaymentRepository paymentRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final OutboxWriter outboxWriter;
 
-    PaymentTransactions(PaymentRepository paymentRepository,
-                        IdempotencyKeyRepository idempotencyKeyRepository,
-                        OutboxWriter outboxWriter) {
+    PaymentUnitOfWork(PaymentRepository paymentRepository,
+                      IdempotencyKeyRepository idempotencyKeyRepository,
+                      OutboxWriter outboxWriter) {
         this.paymentRepository = paymentRepository;
         this.idempotencyKeyRepository = idempotencyKeyRepository;
         this.outboxWriter = outboxWriter;
@@ -63,11 +63,5 @@ class PaymentTransactions {
                 payment.getAmount(), payment.getCurrency(), payment.getStatus().name()));
 
         return payment;
-    }
-
-    @Transactional(readOnly = true)
-    Payment findById(UUID paymentId) {
-        return paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
     }
 }

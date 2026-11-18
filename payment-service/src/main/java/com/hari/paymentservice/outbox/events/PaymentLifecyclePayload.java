@@ -6,4 +6,4 @@ import java.util.UUID;
 /** Shared shape for PaymentSucceeded, PaymentCancelled, PaymentFailed, RefundRequested. */
 public record PaymentLifecyclePayload(
         UUID paymentId, UUID holdId, UUID userId,
-        BigDecimal amount, String currency, String status) {}
+        BigDecimal amount, String currency) {}

@@ -6,9 +6,7 @@ import com.hari.paymentservice.outbox.events.PaymentLifecyclePayload;
 import com.hari.paymentservice.payment.*;
 import com.hari.paymentservice.stripe.StripeStatusMapper;
 import com.stripe.exception.SignatureVerificationException;
-import com.stripe.model.Event;
-import com.stripe.model.PaymentIntent;
-import com.stripe.model.StripeObject;
+import com.stripe.model.*;
 import com.stripe.net.Webhook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +54,11 @@ public class StripeWebhookService {
             return;
         }
 
+        if (event.getType().startsWith("charge.refund") || event.getType().startsWith("refund.")) {
+            handleRefundEvent(event, payload);
+            return;
+        }
+
         Optional<PaymentIntent> maybeIntent = extractPaymentIntent(event);
 
         StripeWebhookEvent record = new StripeWebhookEvent(
@@ -83,7 +86,7 @@ public class StripeWebhookService {
 
     private void applyToPayment(Event event, PaymentIntent intent, StripeWebhookEvent record) {
         Payment payment = paymentRepository
-                .findByStripePaymentIntentId(intent.getId())
+                .findByStripePaymentIntentIdForUpdate(intent.getId())
                 .orElse(null);
 
         if (payment == null) {
@@ -110,8 +113,10 @@ public class StripeWebhookService {
             // the refund processor perform it, with the same retry semantics as every other refund.
             payment.markLateSuccess(now);
             payment.startRefund();
+
             outboxWriter.write("PaymentSucceeded", payment.getId(), payloadFor(payment));
             outboxWriter.write("RefundRequested", payment.getId(), payloadFor(payment));
+
             log.warn("Late success on payment {} — refund pending", payment.getId());
             record.markProcessed(now);
             return;
@@ -162,6 +167,69 @@ public class StripeWebhookService {
     private PaymentLifecyclePayload payloadFor(Payment payment) {
         return new PaymentLifecyclePayload(
                 payment.getId(), payment.getHoldId(), payment.getUserId(),
-                payment.getAmount(), payment.getCurrency(), payment.getStatus().name());
+                payment.getAmount(), payment.getCurrency());
+    }
+
+    private void handleRefundEvent(Event event, String payload) {
+
+        StripeObject object = deserialize(event);
+        String paymentIntentId = extractPaymentIntentIdFromRefund(object, event);
+
+        StripeWebhookEvent record = new StripeWebhookEvent(
+                event.getId(), event.getType(), paymentIntentId, payload);
+        webhookEventRepository.save(record);
+
+        Payment payment = paymentRepository.findByStripePaymentIntentIdForUpdate(paymentIntentId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No payment for refunded PaymentIntent " + paymentIntentId));
+
+        Instant now = clock.instant();
+
+        if (isRefundSuccess(event, object)) {
+            if (payment.getStatus() != PaymentStatus.REFUNDED) {
+                payment.markRefunded(now);
+                outboxWriter.write("RefundSucceeded", payment.getId(), payloadFor(payment));
+            }
+        } else if (isRefundFailure(object)) {
+            if (payment.getStatus() != PaymentStatus.REFUND_FAILED) {
+                payment.markRefundFailed();
+                outboxWriter.write("RefundFailed", payment.getId(), payloadFor(payment));
+            }
+        } else {
+            log.debug("Refund event {} for payment {} carries no terminal outcome",
+                    event.getType(), payment.getId());
+        }
+
+        record.markProcessed(now);
+    }
+
+    private StripeObject deserialize(Event event) {
+        return event.getDataObjectDeserializer().getObject()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Could not deserialize data object for Stripe event " + event.getId()
+                                + " (API version " + event.getApiVersion() + ")"));
+    }
+
+    private String extractPaymentIntentIdFromRefund(StripeObject object, Event event) {
+        if (object instanceof Charge charge) {
+            return charge.getPaymentIntent();
+        }
+        if (object instanceof Refund refund) {
+            return refund.getPaymentIntent();
+        }
+        throw new IllegalStateException(
+                "Unexpected object type for refund event " + event.getType());
+    }
+
+    private boolean isRefundSuccess(Event event, StripeObject object) {
+        if (event.getType().equals("charge.refunded")) {
+            return true;
+        }
+        return object instanceof Refund refund && "succeeded".equals(refund.getStatus());
+    }
+
+    private boolean isRefundFailure(StripeObject object) {
+        return object instanceof Refund refund
+                && ("failed".equals(refund.getStatus()) || "canceled".equals(refund.getStatus()));
     }
 }

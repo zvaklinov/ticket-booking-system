@@ -1,0 +1,24 @@
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+
+logging:
+  level:
+    org.apache.kafka.clients: warn
+
+stripe:
+  secret-key: sk_test_dummy
+  webhook-secret: whsec_dummy
+
+payment:
+  refund:
+    poll-interval-ms: 3600000
+  timeout:
+    deadline: PT30M
+    poll-interval-ms: 3600000
+    batch-size: 50
+
+outbox:
+  poll-interval-ms: 3600000
+  batch-size: 50

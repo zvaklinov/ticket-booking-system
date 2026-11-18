@@ -8,6 +8,7 @@ import com.hari.paymentservice.common.IdempotencyKeyConflictException;
 import com.hari.paymentservice.common.IdempotencyKeyRepository;
 import com.hari.paymentservice.payment.dto.CreatePaymentRequest;
 import com.hari.paymentservice.payment.dto.PaymentResponse;
+import com.hari.paymentservice.payment.exceptions.HoldAlreadyHasPaymentException;
 import com.hari.paymentservice.payment.exceptions.PaymentAccessDeniedException;
 import com.hari.paymentservice.payment.exceptions.PaymentProviderException;
 import com.hari.paymentservice.stripe.StripeGateway;
@@ -16,6 +17,7 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -31,14 +33,14 @@ public class PaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
 
-    private final PaymentTransactions transactions;
+    private final PaymentUnitOfWork transactions;
     private final PaymentRepository paymentRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final BookingServiceClient bookingServiceClient;
     private final StripeGateway stripeGateway;
     private final Clock clock;
 
-    public PaymentService(PaymentTransactions transactions,
+    public PaymentService(PaymentUnitOfWork transactions,
                           PaymentRepository paymentRepository,
                           IdempotencyKeyRepository idempotencyKeyRepository,
                           BookingServiceClient bookingServiceClient,
@@ -64,29 +66,40 @@ public class PaymentService {
                 idempotencyKeyRepository.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
 
         if (existing.isPresent()) {
-            IdempotencyKey key = existing.get();
-            if (!key.getRequestHash().equals(requestHash)) {
-                throw new IdempotencyKeyConflictException(idempotencyKey);
-            }
-            // A retry. The original may have died partway through, so resume rather than
-            // assume it finished — every remaining step is idempotent.
-            return resume(transactions.findById(key.getResourceId()));
+            return resumeFrom(existing.get(), requestHash, idempotencyKey);
         }
 
         SeatHoldPaymentDetails hold = bookingServiceClient.getPaymentDetails(request.holdId());
         validate(hold, userId);
 
-        // The amount comes from the hold, never from the request. A client-supplied amount
-        // would let a customer set their own price.
-        Payment payment = transactions.createPaymentRecord(
-                hold.holdId(), userId, hold.totalAmount(), hold.currency(),
-                idempotencyKey, requestHash);
+        try {
+            Payment payment = transactions.createPaymentRecord(
+                    hold.holdId(), userId, hold.totalAmount(), hold.currency(),
+                    idempotencyKey, requestHash);
 
-        return resume(payment);
+            return resume(payment);
+
+        } catch (DataIntegrityViolationException e) {
+            Optional<IdempotencyKey> key =
+                    idempotencyKeyRepository.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
+
+            if (key.isPresent()) {
+                return resumeFrom(key.get(), requestHash, idempotencyKey);
+            }
+
+            Optional<Payment> live =
+                    paymentRepository.findByHoldIdAndStatusNotIn(hold.holdId(), PaymentStatus.DEAD);
+
+            if (live.isPresent()) {
+                throw new HoldAlreadyHasPaymentException(hold.holdId(), live.get().getId());
+            }
+
+            throw e;
+        }
     }
 
     public PaymentResponse getById(UUID paymentId, UUID userId) {
-        Payment payment = transactions.findById(paymentId);
+        Payment payment = paymentRepository.requireById(paymentId);
 
         if (!payment.getUserId().equals(userId)) {
             throw new PaymentAccessDeniedException(paymentId);
@@ -126,6 +139,13 @@ public class PaymentService {
             log.error("Stripe rejected PaymentIntent creation for payment {}", payment.getId(), e);
             throw new PaymentProviderException(payment.getId(), e);
         }
+    }
+
+    private PaymentResponse resumeFrom(IdempotencyKey key, String requestHash, String idempotencyKey) {
+        if (!key.getRequestHash().equals(requestHash)) {
+            throw new IdempotencyKeyConflictException(idempotencyKey);
+        }
+        return resume(paymentRepository.requireById(key.getResourceId()));
     }
 
     private String retrieveClientSecret(Payment payment) {
